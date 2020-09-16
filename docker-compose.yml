@@ -20,7 +20,7 @@ services:
       - "3000:3000"
     links:
       - postgresql
-    command: nodemon bin/osm-changes.js
+    command: nodemon bin/adiff.js
   postgresql:
     image: mdillon/postgis:9.6
     environment:

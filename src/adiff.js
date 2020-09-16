@@ -20,7 +20,7 @@ const blobServiceClient = new BlobServiceClient(
 
 const containerName = process.env.CONTAINER_NAME;
 
-const toCloud = (adiff, callback) => {
+const toCloud = async (adiff, callback) => {
 	// connect to cloud and upload adiff
 	const containerClient = blobServiceClient.getContainerClient(containerName);
 
