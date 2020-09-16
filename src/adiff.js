@@ -1,11 +1,18 @@
+require("babel-polyfill");
+require("core-js/features/array/flat");
+
 const async = require("async");
+const _ = require("highland");
 const {
   parsers: { AugmentedDiffParser },
   sources: { AugmentedDiffs, Changesets }
 } = require("osm-replication-streams");
 const env = require("require-env");
 const { NOOP } = require(".");
-const { BlobServiceClient } = require("@azure/storage-blob");
+const { Pool } = require("pg");
+const htmlEntities = require('html-entities').AllHtmlEntities;
+const OSMParser = require("osm2obj");
+const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
 const { DefaultAzureCredential } = require("@azure/identity");
 
 const OVERPASS_URL = process.env.OVERPASS_URL || "http://overpass-api.de";
@@ -20,21 +27,48 @@ const blobServiceClient = new BlobServiceClient(
 
 const containerName = process.env.CONTAINER_NAME;
 
-const toCloud = async (adiff, callback) => {
-	// connect to cloud and upload adiff
-	const containerClient = blobServiceClient.getContainerClient(containerName);
+const pool = new Pool({
+  connectionString: env.require("DATABASE_URL")
+});
 
-  	const blobName = "newblob" + new Date().getTime();
-  	const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-  	const uploadBlobResponse = await blockBlobClient.upload(adiff, content.length);
-  	console.log(`Upload block blob ${blobName} successfully`, uploadBlobResponse.requestId);
+const query = (q, params, callback) =>
+  pool.connect((err, client, release) => {
+    if (typeof params === "function") {
+      callback = params;
+      params = null;
+    }
 
-	if (err) {
+    callback = callback || NOOP;
+
+    if (err) {
+      console.warn(err);
+      release();
       return callback(err);
     }
 
-    return callback(null, "foo");
-}
+    return client.query(q, params, (err, results) => {
+      release();
+      return callback(err, results);
+    });
+  });
+
+const getInitialChangesetSequenceNumber = callback =>
+  query("SELECT id FROM changesets_status", (err, results) => {
+    if (err) {
+      return callback(err);
+    }
+
+    return callback(null, results.rows[0].id);
+  });
+
+const getInitialAugmentedDiffSequenceNumber = callback =>
+  query("SELECT id FROM augmented_diff_status", (err, results) => {
+    if (err) {
+      return callback(err);
+    }
+    console.log("initialAugmentedDiffSequenceNumber: ", results.rows[0].id)
+    return callback(null, results.rows[0].id);
+  });
 
 module.exports = (options, callback) => {
   const opts = Object.assign(
@@ -71,7 +105,12 @@ module.exports = (options, callback) => {
                 infinite: opts.infinite,
                 delay: opts.delay
               })
-                .pipe(toCloud())
+                .pipe(uploadStreamToBlockBlob( // TODO: stream the augmented diff to blob storage
+                    aborter, 
+                    stream, 
+                    blockBlobURL, 
+                    uploadOptions.bufferSize, 
+                    uploadOptions.maxBuffers);)
             )
             .done(() => done),
             ],
