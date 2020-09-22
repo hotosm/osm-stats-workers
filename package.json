@@ -29,7 +29,7 @@
     "highland": "^2.11.1",
     "html-entities": "^1.2.1",
     "martinez-polygon-clipping": "^0.5.0",
-    "osm-replication-streams": "^0.6.3",
+    "@hotosm/osm-replication-streams": "^0.7.3",
     "osm2obj": "^3.0.0",
     "pg": "^7.4.1",
     "pg-query-stream": "^1.1.1",

@@ -10,7 +10,7 @@ const OSMParser = require("osm2obj");
 const {
   parsers: { AugmentedDiffParser },
   sources: { AugmentedDiffs, Changesets }
-} = require("osm-replication-streams");
+} = require("@hotosm/osm-replication-streams");
 const { Pool } = require("pg");
 
 const { NOOP } = require(".");
